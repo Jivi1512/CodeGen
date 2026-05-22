@@ -506,44 +506,65 @@ or
     }`}>
       
       {/* 1. COMPASS NAVBAR TOP SECTION */}
-      <nav className="flex items-center justify-between px-5 py-3 border-b border-white/[0.04] bg-[#0c0e16] select-none z-20">
-        <div className="flex items-center gap-3">
-          <div className="p-1.5 rounded-lg bg-gradient-to-r from-purple-600 via-violet-600 to-indigo-600 border border-purple-400/20 shadow-md">
-            <Cpu className="w-4 h-4 text-white animate-spin-slow" />
-          </div>
-          <div className="flex flex-col text-left">
-            <div className="flex items-center gap-2">
-              <span className="text-xs font-bold text-white tracking-widest uppercase font-mono leading-none">AuraClaude Core</span>
-              <span className="text-[10px] bg-purple-950/80 border border-purple-500/20 px-2 py-0.5 rounded-full text-purple-300 font-mono font-bold font-semibold">Tuner v1.0</span>
+      <nav className="flex flex-col sm:flex-row items-center gap-4 justify-between px-5 py-3 border-b border-white/[0.04] bg-[#0c0e16] select-none z-20">
+        <div className="flex items-center gap-3 w-full sm:w-auto justify-between sm:justify-start">
+          <div className="flex items-center gap-3">
+            <div className="p-1.5 rounded-lg bg-gradient-to-r from-purple-600 via-violet-600 to-indigo-600 border border-purple-400/20 shadow-md">
+              <Cpu className="w-4 h-4 text-white animate-spin-slow" />
             </div>
-            <span className="text-[9px] text-slate-500 font-medium font-mono mt-0.5">Offline-First Intelligent Coding Engine</span>
+            <div className="flex flex-col text-left">
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-bold text-white tracking-widest uppercase font-mono leading-none">AuraClaude Core</span>
+                <span className="text-[10px] bg-purple-950/80 border border-purple-500/20 px-2 py-0.5 rounded-full text-purple-300 font-mono font-bold font-semibold">Tuner v1.0</span>
+              </div>
+              <span className="text-[9px] text-slate-500 font-medium font-mono mt-0.5">Offline-First Intelligent Coding Engine</span>
+            </div>
+          </div>
+
+          <div className="block sm:hidden">
+            <div className="flex items-center p-0.5 bg-slate-900 rounded-lg border border-white/5">
+              <button 
+                onClick={() => setMode('light')}
+                className={`p-1.5 rounded-md text-xs transition ${mode === 'light' ? 'bg-white text-black' : 'text-slate-500 hover:text-white'}`}
+                title="Light Mode"
+              >
+                <Sun size={12} />
+              </button>
+              <button 
+                onClick={() => setMode('dark')}
+                className={`p-1.5 rounded-md text-xs transition ${mode === 'dark' ? 'bg-slate-800 text-purple-400' : 'text-slate-500 hover:text-white'}`}
+                title="Dark Mode"
+              >
+                <Moon size={12} />
+              </button>
+            </div>
           </div>
         </div>
 
-        {/* Selected Model Selection Tabs */}
-        <div className="hidden md:flex items-center gap-2 p-1 bg-slate-900 border border-white/5 rounded-xl text-[11px] font-mono">
+        {/* Selected Model Selection Tabs - now responsive and visible at all widths */}
+        <div className="flex flex-wrap justify-center items-center gap-1 p-1 bg-slate-900 border border-white/5 rounded-xl text-[10.5px] font-mono w-full sm:w-auto">
           <button 
             onClick={() => setSelectedApi('gemini-3.5-flash')}
-            className={`px-3 py-1.5 rounded-lg font-bold transition flex items-center gap-1 cursor-pointer ${selectedApi === 'gemini-3.5-flash' ? 'bg-purple-900/50 text-purple-300 border border-purple-500/20 shadow' : 'text-slate-400 hover:text-white'}`}
+            className={`px-2.5 sm:px-3 py-1.5 rounded-lg font-bold transition flex items-center gap-1 cursor-pointer ${selectedApi === 'gemini-3.5-flash' ? 'bg-purple-900/50 text-purple-300 border border-purple-500/20 shadow' : 'text-slate-400 hover:text-white'}`}
           >
             <Sparkles size={11} /> Gemini 3.5 Auto
           </button>
           <button 
             onClick={() => setSelectedApi('gemma-2-2b-it')}
-            className={`px-3 py-1.5 rounded-lg font-bold transition flex items-center gap-1 cursor-pointer ${selectedApi === 'gemma-2-2b-it' ? 'bg-purple-900/50 text-purple-300 border border-purple-500/20 shadow' : 'text-slate-400 hover:text-white'}`}
+            className={`px-2.5 sm:px-3 py-1.5 rounded-lg font-bold transition flex items-center gap-1 cursor-pointer ${selectedApi === 'gemma-2-2b-it' ? 'bg-purple-900/50 text-purple-300 border border-purple-500/20 shadow' : 'text-slate-400 hover:text-white'}`}
           >
             <FileCode size={11} /> Gemma-2 (NVIDIA NIM)
           </button>
           <button 
             onClick={() => setSelectedApi('deepseek-chat')}
-            className={`px-3 py-1.5 rounded-lg font-bold transition flex items-center gap-1 cursor-pointer ${selectedApi === 'deepseek-chat' ? 'bg-purple-900/50 text-purple-300 border border-purple-500/20 shadow' : 'text-slate-400 hover:text-white'}`}
+            className={`px-2.5 sm:px-3 py-1.5 rounded-lg font-bold transition flex items-center gap-1 cursor-pointer ${selectedApi === 'deepseek-chat' ? 'bg-purple-900/50 text-purple-300 border border-purple-500/20 shadow' : 'text-slate-400 hover:text-white'}`}
           >
             <Code size={11} /> DeepSeek Chat
           </button>
         </div>
 
         {/* Global actions */}
-        <div className="flex items-center gap-3">
+        <div className="hidden sm:flex items-center gap-3">
           <div className="flex items-center p-0.5 bg-slate-900 rounded-lg border border-white/5">
             <button 
               onClick={() => setMode('light')}

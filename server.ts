@@ -173,6 +173,11 @@ async function startServer() {
       const sysPrompt = systemInstruction || "You are an elite software architect and senior code tuner. Analyze the user query, correct the uploaded file content or image-based code, and output the pristine corrected program code. Maintain clean programming architecture, helpful docstrings, and responsive structures.";
 
       // Keep user query and actual uploaded file code in prompt context
+      let processedCode = code || "";
+      if (selectedModel === "gemma-2-2b-it" && processedCode.length > 8000) {
+        processedCode = processedCode.slice(0, 8000) + "\n\n# ... [SOURCE CODE TRUNCATED TO AVOID NVIDIA NIM 4,096 TOKENS CONTEXT FAULT] ...";
+      }
+
       const fullPrompt = image 
         ? `Perform high-fidelity OCR code transcription and apply the following code correction/refactoring requested by the user:
 "${prompt}"
@@ -183,7 +188,7 @@ Transcribe all code lines visible in the uploaded image, resolve any query, and 
 
 Here is the source code file to analyze and correct:
 \`\`\`
-${code || ""}
+${processedCode}
 \`\`\`
 
 Provide the complete, pristine corrected code based on the query.`;
@@ -236,8 +241,7 @@ Provide the complete, pristine corrected code based on the query.`;
               body: JSON.stringify({
                 model: "google/gemma-2-2b-it",
                 messages: [
-                  { role: "system", content: sysPrompt },
-                  { role: "user", content: fullPrompt }
+                  { role: "user", content: `${sysPrompt}\n\n${fullPrompt}` }
                 ],
                 temperature: 0.7,
                 max_tokens: 2048
@@ -318,6 +322,12 @@ Provide the complete, pristine corrected code based on the query.`;
 
           if (!dsResponse.ok) {
             const rawErr = await dsResponse.text();
+            if (dsResponse.status === 402 || rawErr.includes("Insufficient Balance") || rawErr.includes("balance")) {
+              return res.json({
+                text: "⚠️ **DeepSeek API error: Insufficient Balance (402)**\n\nYour loaded DeepSeek API key does not have enough balance to complete this request. To continue coding flawlessly with real generation, please **switch your active model to 'Gemini 3.5 Auto'** using the model chooser pills at the top of the interface.",
+                simulated: false
+              });
+            }
             throw new Error(`DeepSeek client returned status ${dsResponse.status}: ${rawErr}`);
           }
 
@@ -328,6 +338,12 @@ Provide the complete, pristine corrected code based on the query.`;
           return res.json({ text: generatedText, simulated: false });
         } catch (dsErr: any) {
           console.error("DeepSeek Fetch Error:", dsErr);
+          if (dsErr.message?.includes("402") || dsErr.message?.toLowerCase().includes("balance")) {
+            return res.json({
+              text: "⚠️ **DeepSeek API error: Insufficient Balance (402)**\n\nYour loaded DeepSeek API key has run out of balance. Please **switch your active model to 'Gemini 3.5 Auto'** using the selection pills in the top menu bar to keep working without interruption.",
+              simulated: false
+            });
+          }
           return res.status(500).json({ error: `DeepSeek service failed: ${dsErr.message}` });
         }
       } else if (selectedModel === "gemini-3.5-flash") {
