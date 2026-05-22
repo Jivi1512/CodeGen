@@ -165,25 +165,101 @@ async function startServer() {
     return code;
   };
 
-  // 1. Generation API Route - supporting gemma-2-2b-it and deepseek-chat
+  // 1. Generation API Route - supporting gemma-2-2b-it, deepseek-chat, and gemini-3.5-flash (with multimodal OCR support!)
   app.post("/api/generate", async (req, res) => {
     try {
-      const { prompt, model, systemInstruction, code } = req.body;
+      const { prompt, model, systemInstruction, code, image } = req.body;
       const selectedModel = model || "gemma-2-2b-it";
-      const sysPrompt = systemInstruction || "You are a professional assistant and elite software engineer. Respond ONLY with valid React JSX/TSX component code. No markdown explanations.";
+      const sysPrompt = systemInstruction || "You are an elite software architect and senior code tuner. Analyze the user query, correct the uploaded file content or image-based code, and output the pristine corrected program code. Maintain clean programming architecture, helpful docstrings, and responsive structures.";
 
       // Keep user query and actual uploaded file code in prompt context
-      const fullPrompt = `Below is the User's query/spec:
+      const fullPrompt = image 
+        ? `Perform high-fidelity OCR code transcription and apply the following code correction/refactoring requested by the user:
+"${prompt}"
+
+Transcribe all code lines visible in the uploaded image, resolve any query, and output the corrected program code.`
+        : `Below is the User's query/spec:
 "${prompt}"
 
 Here is the source code file to analyze and correct:
-\`\`\`tsx
+\`\`\`
 ${code || ""}
 \`\`\`
 
-Provide the complete, pristine corrected React component code without any verbal conversational text around it.`;
+Provide the complete, pristine corrected code based on the query.`;
 
+      // If an image is attached and Gemini API key is active, always route through gemini-3.5-flash for real OCR processing
+      if (image && (process.env.GEMINI_API_KEY || process.env.NVIDIA_NIM_API_KEY)) {
+        const ai = getGoogleGenAI();
+        if (ai) {
+          try {
+            const imagePart = {
+              inlineData: {
+                mimeType: image.mimeType, // "image/png" etc.
+                data: image.data, // base64 encoded string without the prefix
+              },
+            };
+            const textPart = {
+              text: fullPrompt,
+            };
+            const response = await ai.models.generateContent({
+              model: "gemini-3.5-flash",
+              contents: { parts: [imagePart, textPart] },
+              config: {
+                systemInstruction: sysPrompt,
+                temperature: 0.7,
+              }
+            });
+
+            let returnedText = response.text || "";
+            // Strip markdown block formatting if present
+            returnedText = returnedText.replace(/^```[a-zA-Z]*\n/gm, "").replace(/```$/gm, "");
+            return res.json({ text: returnedText, simulated: false, ocrSuccess: true });
+          } catch (geminiImgErr: any) {
+            console.error("Gemini Image OCR request failed:", geminiImgErr);
+            // fallback gracefully
+          }
+        }
+      }
+
+      // Standard selected model pipelines
       if (selectedModel === "gemma-2-2b-it") {
+        const nvidiaKey = process.env.NVIDIA_NIM_API_KEY || (process.env.GEMINI_API_KEY?.startsWith("nvapi-") ? process.env.GEMINI_API_KEY : null);
+        if (nvidiaKey) {
+          try {
+            const response = await fetch("https://integrate.api.nvidia.com/v1/chat/completions", {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                "Authorization": `Bearer ${nvidiaKey}`
+              },
+              body: JSON.stringify({
+                model: "google/gemma-2-2b-it",
+                messages: [
+                  { role: "system", content: sysPrompt },
+                  { role: "user", content: fullPrompt }
+                ],
+                temperature: 0.7,
+                max_tokens: 2048
+              })
+            });
+
+            if (!response.ok) {
+              const textErr = await response.text();
+              throw new Error(`NVIDIA NIM API responded with ${response.status}: ${textErr}`);
+            }
+
+            const data = await response.json();
+            let returnedText = data.choices?.[0]?.message?.content || "";
+            returnedText = returnedText.replace(/^```[a-zA-Z]*\n/gm, "").replace(/```$/gm, "");
+
+            return res.json({ text: returnedText, simulated: false });
+          } catch (nimErr: any) {
+            console.error("NVIDIA NIM Request failed:", nimErr);
+            return res.status(500).json({ error: `NVIDIA NIM service failed: ${nimErr.message}` });
+          }
+        }
+
         const ai = getGoogleGenAI();
         if (!ai) {
           // Keep env vars for gemma 2 2b-it, falling back to smart client correction
@@ -253,6 +329,34 @@ Provide the complete, pristine corrected React component code without any verbal
         } catch (dsErr: any) {
           console.error("DeepSeek Fetch Error:", dsErr);
           return res.status(500).json({ error: `DeepSeek service failed: ${dsErr.message}` });
+        }
+      } else if (selectedModel === "gemini-3.5-flash") {
+        const ai = getGoogleGenAI();
+        if (!ai) {
+          const corrected = runLocalCorrection(code, prompt);
+          return res.json({
+            text: corrected,
+            simulated: true,
+            message: "Simulation: local corrector fallback applied."
+          });
+        }
+
+        try {
+          const response = await ai.models.generateContent({
+            model: "gemini-3.5-flash",
+            contents: fullPrompt,
+            config: {
+              systemInstruction: sysPrompt,
+              temperature: 0.7,
+            }
+          });
+
+          let returnedText = response.text || "";
+          returnedText = returnedText.replace(/^```[a-zA-Z]*\n/gm, "").replace(/```$/gm, "");
+          return res.json({ text: returnedText, simulated: false });
+        } catch (gemErr: any) {
+          console.error("Gemini 3.5 direct failed:", gemErr);
+          return res.status(500).json({ error: gemErr.message || "Failed to call Gemini 3.5-flash gateway" });
         }
       }
 
