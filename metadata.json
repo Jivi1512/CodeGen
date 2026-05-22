@@ -1,0 +1,6 @@
+{
+  "name": "Google AI Studio Next-Gen UI",
+  "description": "Next-generation AI React component generator and interactive sandbox manager designed to compile, prototype, and stash custom interfaces in real-time.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
